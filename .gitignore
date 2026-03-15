@@ -1,0 +1,34 @@
+bin/
+obj/
+.vs/
+.vscode/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build and test artifacts
+TestResults/
+coverage/
+*.coverage
+*.trx
+
+# Rider/ReSharper
+.idea/
+*.sln.iml
+_ReSharper*/
+
+# Logs and env
+*.log
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local secrets
+**/appsettings.Development.json
+**/secrets.json

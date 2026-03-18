@@ -32,7 +32,8 @@ public class JobRepository(JobDbContext dbContext) : IJobRepository
 
         if (!string.IsNullOrWhiteSpace(priority))
         {
-            query = query.Where(j => j.Priority == priority);
+            var priorityEnum = JobPriorityExtensions.Parse(priority);
+            query = query.Where(j => j.Priority == priorityEnum);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

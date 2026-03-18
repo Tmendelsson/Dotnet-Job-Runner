@@ -74,8 +74,8 @@ public class JobServiceTests
     {
         var jobs = new List<Job>
         {
-            new() { Id = Guid.NewGuid(), Type = "job-a", Priority = "normal", Status = JobStatus.Completed },
-            new() { Id = Guid.NewGuid(), Type = "job-b", Priority = "high", Status = JobStatus.Failed }
+            new() { Id = Guid.NewGuid(), Type = "job-a", Priority = JobPriority.Normal, Status = JobStatus.Completed },
+            new() { Id = Guid.NewGuid(), Type = "job-b", Priority = JobPriority.High, Status = JobStatus.Failed }
         };
 
         _repository
@@ -121,7 +121,7 @@ public class JobServiceTests
         {
             Id = Guid.NewGuid(),
             Type = "import-csv",
-            Priority = "normal",
+            Priority = JobPriority.Normal,
             Status = JobStatus.Failed,
             RetryCount = 1,
             ErrorMessage = "temporary failure"

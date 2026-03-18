@@ -1,4 +1,5 @@
 using DotnetJobRunner.Application;
+using DotnetJobRunner.Application.Abstractions;
 using DotnetJobRunner.Infrastructure;
 using FluentValidation;
 using Hangfire;
@@ -23,13 +24,19 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("DefaultConnection is not configured.");
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException("DefaultConnection is not configured.");
 
-builder.Services.AddHangfire(configuration =>
-    configuration.UsePostgreSqlStorage(options =>
-        options.UseNpgsqlConnection(connectionString)));
-builder.Services.AddHangfireServer();
+    builder.Services.AddHangfire(configuration =>
+        configuration.UsePostgreSqlStorage(options =>
+            options.UseNpgsqlConnection(connectionString)));
+}
+else
+{
+    builder.Services.AddScoped<IJobScheduler, NoOpJobScheduler>();
+}
 
 builder.Services.AddHealthChecks();
 
@@ -85,9 +92,33 @@ app.UseSerilogRequestLogging();
 
 app.UseRouting();
 
-app.UseHangfireDashboard("/hangfire");
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    app.UseHangfireDashboard("/hangfire");
+}
 
 app.MapControllers();
 app.MapHealthChecks("/health");
 
 app.Run();
+
+public partial class Program;
+
+internal sealed class NoOpJobScheduler : IJobScheduler
+{
+    public void Enqueue(Guid jobId)
+    {
+    }
+
+    public void Schedule(Guid jobId, DateTime runAt)
+    {
+    }
+
+    public void AddOrUpdateRecurring(Guid recurringJobDefinitionId, string cronExpression)
+    {
+    }
+
+    public void RemoveRecurring(Guid recurringJobDefinitionId)
+    {
+    }
+}

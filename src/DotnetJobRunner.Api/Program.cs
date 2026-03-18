@@ -104,17 +104,17 @@ if (!app.Environment.IsEnvironment("Testing"))
     {
         Authorization = [new HangfireAuthorizationFilter()]
     });
+
+    // Apply pending migrations automatically (only in production/development)
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<JobDbContext>();
+        await dbContext.Database.MigrateAsync();
+    }
 }
 
 app.MapControllers();
 app.MapHealthChecks("/health");
-
-// Apply pending migrations automatically
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<JobDbContext>();
-    await dbContext.Database.MigrateAsync();
-}
 
 app.Run();
 

@@ -16,6 +16,11 @@ public class HangfireJobScheduler(IBackgroundJobClient backgroundJobs, IRecurrin
         backgroundJobs.Schedule<JobExecutionService>(service => service.Execute(jobId, CancellationToken.None), runAt);
     }
 
+    public void Delete(Guid jobId)
+    {
+        backgroundJobs.Delete(jobId.ToString());
+    }
+
     public void AddOrUpdateRecurring(Guid recurringJobDefinitionId, string cronExpression)
     {
         recurringJobs.AddOrUpdate<RecurringJobExecutionService>(

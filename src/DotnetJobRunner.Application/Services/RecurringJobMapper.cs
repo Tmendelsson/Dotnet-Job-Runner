@@ -11,7 +11,7 @@ internal static class RecurringJobMapper
         Name = recurringJob.Name,
         Type = recurringJob.Type,
         CronExpression = recurringJob.CronExpression,
-        Priority = recurringJob.Priority,
+        Priority = JobPriorityExtensions.ToString(recurringJob.Priority),
         IsActive = recurringJob.IsActive,
         CreatedAt = recurringJob.CreatedAt,
         LastRunAt = recurringJob.LastRunAt,

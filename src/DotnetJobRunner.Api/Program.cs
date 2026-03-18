@@ -1,11 +1,14 @@
+using DotnetJobRunner.Api.Authorization;
 using DotnetJobRunner.Application;
 using DotnetJobRunner.Application.Abstractions;
 using DotnetJobRunner.Infrastructure;
+using DotnetJobRunner.Infrastructure.Persistence;
 using FluentValidation;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -92,18 +95,36 @@ app.UseSerilogRequestLogging();
 
 app.UseRouting();
 
+// UseAuthorization must be called before endpoint mapping
+app.UseAuthorization();
+
 if (!app.Environment.IsEnvironment("Testing"))
 {
-    app.UseHangfireDashboard("/hangfire");
+    app.UseHangfireDashboard("/hangfire", new DashboardOptions
+    {
+        Authorization = [new HangfireAuthorizationFilter()]
+    });
 }
 
 app.MapControllers();
 app.MapHealthChecks("/health");
 
+// Apply pending migrations automatically
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<JobDbContext>();
+    await dbContext.Database.MigrateAsync();
+}
+
 app.Run();
 
 public partial class Program;
 
+/// <summary>
+/// Testing implementation of IJobScheduler that performs no-op operations.
+/// This is registered when running in "Testing" environment to avoid actual job scheduling.
+/// Used by integration tests via WebApplicationFactory with UseEnvironment("Testing").
+/// </summary>
 internal sealed class NoOpJobScheduler : IJobScheduler
 {
     public void Enqueue(Guid jobId)
@@ -111,6 +132,10 @@ internal sealed class NoOpJobScheduler : IJobScheduler
     }
 
     public void Schedule(Guid jobId, DateTime runAt)
+    {
+    }
+
+    public void Delete(Guid jobId)
     {
     }
 

@@ -7,7 +7,8 @@ public class RecurringJobDefinition
     public string Type { get; set; } = string.Empty;
     public string CronExpression { get; set; } = string.Empty;
     public string Payload { get; set; } = "{}";
-    public string Priority { get; set; } = "normal";
+    public JobPriority Priority { get; set; } = JobPriority.Normal;
+    public int MaxRetries { get; set; } = 3;
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastRunAt { get; set; }

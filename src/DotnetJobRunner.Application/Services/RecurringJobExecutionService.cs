@@ -21,7 +21,7 @@ public class RecurringJobExecutionService(IJobRepository repository, IJobSchedul
             Priority = recurring.Priority,
             CreatedBy = recurring.CreatedBy,
             Status = JobStatus.Queued,
-            MaxRetries = 3
+            MaxRetries = recurring.MaxRetries
         };
 
         await repository.AddAsync(job, cancellationToken);

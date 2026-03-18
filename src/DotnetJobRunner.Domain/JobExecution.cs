@@ -6,7 +6,7 @@ public class JobExecution
     public Guid JobId { get; set; }
     public DateTime StartedAt { get; set; }
     public DateTime? FinishedAt { get; set; }
-    public JobStatus Status { get; set; } = JobStatus.Processing;
+    public ExecutionStatus Status { get; set; } = ExecutionStatus.Processing;
     public string? Log { get; set; }
     public string? ErrorMessage { get; set; }
     public int Attempt { get; set; }

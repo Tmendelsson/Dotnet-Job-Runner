@@ -5,7 +5,7 @@ public class Job
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Type { get; set; } = string.Empty;
     public string Payload { get; set; } = "{}";
-    public string Priority { get; set; } = "normal";
+    public JobPriority Priority { get; set; } = JobPriority.Normal;
     public JobStatus Status { get; set; } = JobStatus.Pending;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ScheduledAt { get; set; }

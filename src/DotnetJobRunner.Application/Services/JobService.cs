@@ -21,7 +21,7 @@ public class JobService(
         {
             Type = request.Type,
             Payload = JsonSerializer.Serialize(request.Payload ?? new { }),
-            Priority = request.Priority,
+            Priority = JobPriorityExtensions.Parse(request.Priority),
             MaxRetries = request.MaxRetries,
             CreatedBy = request.CreatedBy,
             ScheduledAt = request.RunAt,
@@ -75,12 +75,13 @@ public class JobService(
 
         if (job.Status is JobStatus.Completed or JobStatus.Canceled)
         {
-            return true;
+            return false;
         }
 
         if (job.Status == JobStatus.Scheduled)
         {
-            scheduler.RemoveRecurring(job.Id);
+            // Delete scheduled job (not recurring job)
+            scheduler.Delete(job.Id);
         }
 
         job.Status = JobStatus.Canceled;
@@ -99,7 +100,7 @@ public class JobService(
 
         if (job.Status != JobStatus.Failed)
         {
-            return true;
+            return false;
         }
 
         job.Status = JobStatus.Retrying;
@@ -121,7 +122,8 @@ public class JobService(
             Type = request.Type,
             CronExpression = request.CronExpression,
             Payload = JsonSerializer.Serialize(request.Payload ?? new { }),
-            Priority = request.Priority,
+            Priority = JobPriorityExtensions.Parse(request.Priority),
+            MaxRetries = request.MaxRetries,
             CreatedBy = request.CreatedBy,
             IsActive = true
         };
@@ -184,7 +186,7 @@ public class JobService(
         Id = job.Id,
         Type = job.Type,
         Status = job.Status,
-        Priority = job.Priority,
+        Priority = JobPriorityExtensions.ToString(job.Priority),
         CreatedAt = job.CreatedAt,
         ScheduledAt = job.ScheduledAt,
         StartedAt = job.StartedAt,

@@ -16,7 +16,7 @@ public class HangfireAuthorizationFilter : IDashboardAuthorizationFilter
         var httpContext = context.GetHttpContext();
         
         // Allow access from localhost only (development)
-        if (httpContext.Connection.RemoteIpAddress?.IsLoopback == true)
+        if (httpContext.Connection.RemoteIpAddress is not null && httpContext.Connection.RemoteIpAddress.IsLoopback)
         {
             return true;
         }

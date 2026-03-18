@@ -21,7 +21,7 @@ public class JobExecutionService(IJobRepository repository, ILogger<JobExecution
         {
             JobId = job.Id,
             Attempt = attempt,
-            Status = JobStatus.Processing,
+            Status = ExecutionStatus.Processing,
             StartedAt = startedAt,
             Log = $"Started execution for job type '{job.Type}'."
         };
@@ -39,7 +39,7 @@ public class JobExecutionService(IJobRepository repository, ILogger<JobExecution
             job.ErrorMessage = null;
             job.FinishedAt = finishedAt;
 
-            execution.Status = JobStatus.Completed;
+            execution.Status = ExecutionStatus.Completed;
             execution.FinishedAt = finishedAt;
             execution.DurationInMs = (long)(finishedAt - startedAt).TotalMilliseconds;
             execution.Log = executionLog;
@@ -58,7 +58,7 @@ public class JobExecutionService(IJobRepository repository, ILogger<JobExecution
             job.ErrorMessage = ex.Message;
             job.FinishedAt = finishedAt;
 
-            execution.Status = job.Status;
+            execution.Status = ExecutionStatus.Failed;
             execution.ErrorMessage = ex.Message;
             execution.FinishedAt = finishedAt;
             execution.DurationInMs = (long)(finishedAt - startedAt).TotalMilliseconds;

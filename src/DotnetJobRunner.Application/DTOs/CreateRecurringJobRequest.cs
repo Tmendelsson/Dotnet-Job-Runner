@@ -7,5 +7,6 @@ public class CreateRecurringJobRequest
     public string CronExpression { get; set; } = string.Empty;
     public object? Payload { get; set; }
     public string Priority { get; set; } = "normal";
+    public int MaxRetries { get; set; } = 3;
     public string CreatedBy { get; set; } = "api-user";
 }

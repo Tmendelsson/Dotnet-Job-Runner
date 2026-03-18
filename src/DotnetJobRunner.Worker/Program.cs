@@ -8,33 +8,36 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = Host.CreateDefaultBuilder(args);
 
 // Configure Serilog logging
-builder.Host.UseSerilog((context, loggerConfig) =>
+builder.UseSerilog((context, loggerConfig) =>
     loggerConfig
         .ReadFrom.Configuration(context.Configuration)
         .Enrich.FromLogContext()
         .WriteTo.Console());
 
-builder.Services.AddApplication();
-builder.Services.AddInfrastructure(builder.Configuration);
+builder.ConfigureServices((context, services) =>
+{
+    services.AddApplication();
+    services.AddInfrastructure(context.Configuration);
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-	?? throw new InvalidOperationException("DefaultConnection is not configured.");
+    var connectionString = context.Configuration.GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException("DefaultConnection is not configured.");
 
-builder.Services.AddHangfire(configuration =>
-	configuration.UsePostgreSqlStorage(options =>
-		options.UseNpgsqlConnection(connectionString)));
-builder.Services.AddHangfireServer();
+    services.AddHangfire(configuration =>
+        configuration.UsePostgreSqlStorage(options =>
+            options.UseNpgsqlConnection(connectionString)));
+    services.AddHangfireServer();
 
-// Add health checks for monitoring
-builder.Services.AddHealthChecks();
+    // Add health checks for monitoring
+    services.AddHealthChecks();
+});
 
 var host = builder.Build();
 
 // Log application startup
 host.Services.GetRequiredService<ILogger<Program>>()
-	.LogInformation("Dotnet Job Runner Worker starting...");
+    .LogInformation("Dotnet Job Runner Worker starting...");
 
 await host.RunAsync();

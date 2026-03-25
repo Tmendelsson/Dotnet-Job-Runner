@@ -45,18 +45,56 @@ Plataforma backend para agendar, executar, monitorar e reprocessar tarefas assí
 | Health check (`/health`) | ✅ |
 | Documentação da API (Swagger em `/swagger`) | ✅ |
 | Dashboard Hangfire protegido (`/hangfire`) | ✅ |
-| Testes unitários (5 testes) | ✅ |
+| Testes unitários (9 testes) | ✅ |
 | Teste de integração (1 teste) | ✅ |
 | CI/CD com GitHub Actions | ✅ |
 | Docker Compose para desenvolvimento local | ✅ |
 
-### MVP 2 — Em andamento
+## 🔄 Status do MVP 2
 
-- [x] Endpoint de histórico de execuções (`GET /jobs/{id}/executions`)
-- [ ] Cobertura de testes para `JobExecutionService`
-- [ ] Backoff exponencial no mecanismo de retry
+> **MVP 2 em andamento.** 1 de 5 itens concluídos.
+
+| Funcionalidade | Status |
+|---|---|
+| Histórico de execuções paginado (`GET /jobs/{id}/executions`) | ✅ |
+| `HangfireJobId` persistido — cancelamento de job agendado real | ✅ |
+| Contrato de API correto: `409 Conflict` para estado inválido em cancel/retry | ✅ |
+| Migration: tabela `JobExecutions`, `MaxRetries` em recorrentes | ✅ |
+| Cobertura de testes para `JobExecutionService` | 🔲 |
+| Backoff exponencial no mecanismo de retry | 🔲 |
+| Padrão plugin `IJobHandler<TPayload>` para handlers extensíveis | 🔲 |
+| Métricas de observabilidade (Prometheus/Grafana) | 🔲 |
+
+### Próximos passos (MVP 2 — restante)
+
+- [ ] Testes unitários para `JobExecutionService` e `RecurringJobExecutionService`
+- [ ] Backoff exponencial no retry (delay cresce por tentativa)
 - [ ] Padrão plugin `IJobHandler<TPayload>` para handlers extensíveis
-- [ ] Métricas de observabilidade (Prometheus/Grafana)
+- [ ] Métricas com Prometheus + dashboard Grafana
+
+## 🔲 MVP 3 — Extensibilidade
+
+> **"O sistema é extensível"** — handlers reais, autenticação e rate limiting.
+
+| Funcionalidade | Status |
+|---|---|
+| Padrão plugin `IJobHandler<TPayload>` — handlers como classes independentes | 🔲 |
+| Handlers reais: envio de e-mail, geração de relatório, sync de dados, import CSV | 🔲 |
+| Rate limiting / concorrência configurável por tipo de job | 🔲 |
+| Autenticação real na API (JWT ou API Key) para ambientes não-localhost | 🔲 |
+| Testes unitários para cada handler | 🔲 |
+
+## 🔲 MVP 4 — Produção
+
+> **"O sistema está pronto para deploy"** — observabilidade completa e cloud.
+
+| Funcionalidade | Status |
+|---|---|
+| Métricas com Prometheus + dashboard Grafana | 🔲 |
+| Alertas: job com muitas falhas, fila acumulando | 🔲 |
+| Deploy em cloud (Railway, Fly.io ou Render com PostgreSQL gerenciado) | 🔲 |
+| Variáveis de ambiente via secrets (sem credenciais em arquivos) | 🔲 |
+| README com instruções de deploy e badge de status | 🔲 |
 
 ## Rodando localmente
 

@@ -16,10 +16,11 @@ public class JobDbContext(DbContextOptions<JobDbContext> options) : DbContext(op
             builder.HasKey(x => x.Id);
             builder.Property(x => x.Type).HasMaxLength(100).IsRequired();
             builder.Property(x => x.Payload).HasColumnType("text").IsRequired();
-            builder.Property(x => x.Priority).HasMaxLength(20).IsRequired();
+            builder.Property(x => x.Priority).HasConversion<string>().HasMaxLength(20).IsRequired();
             builder.Property(x => x.CreatedBy).HasMaxLength(100).IsRequired();
             builder.Property(x => x.Status).HasConversion<string>().IsRequired();
             builder.Property(x => x.ErrorMessage).HasColumnType("text");
+            builder.Property(x => x.HangfireJobId).HasMaxLength(50);
             builder.HasMany(x => x.Executions)
                 .WithOne(x => x.Job)
                 .HasForeignKey(x => x.JobId)
@@ -48,7 +49,7 @@ public class JobDbContext(DbContextOptions<JobDbContext> options) : DbContext(op
             builder.Property(x => x.Type).HasMaxLength(100).IsRequired();
             builder.Property(x => x.CronExpression).HasMaxLength(100).IsRequired();
             builder.Property(x => x.Payload).HasColumnType("text").IsRequired();
-            builder.Property(x => x.Priority).HasMaxLength(20).IsRequired();
+            builder.Property(x => x.Priority).HasConversion<string>().HasMaxLength(20).IsRequired();
             builder.Property(x => x.CreatedBy).HasMaxLength(100).IsRequired();
             builder.HasIndex(x => x.Name).IsUnique();
             builder.HasIndex(x => x.IsActive);

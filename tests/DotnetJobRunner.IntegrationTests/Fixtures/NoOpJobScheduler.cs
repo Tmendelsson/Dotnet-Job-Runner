@@ -8,15 +8,11 @@ namespace DotnetJobRunner.IntegrationTests.Fixtures;
 /// </summary>
 internal sealed class NoOpJobScheduler : IJobScheduler
 {
-    public void Enqueue(Guid jobId)
-    {
-    }
+    public string Enqueue(Guid jobId) => string.Empty;
 
-    public void Schedule(Guid jobId, DateTime runAt)
-    {
-    }
+    public string Schedule(Guid jobId, DateTime runAt) => string.Empty;
 
-    public void Delete(Guid jobId)
+    public void Delete(string? hangfireJobId)
     {
     }
 

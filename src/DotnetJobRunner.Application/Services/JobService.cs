@@ -32,14 +32,18 @@ public class JobService(
 
         await repository.AddAsync(job, cancellationToken);
 
+        string hangfireJobId;
         if (request.RunAt is not null)
         {
-            scheduler.Schedule(job.Id, request.RunAt.Value);
+            hangfireJobId = scheduler.Schedule(job.Id, request.RunAt.Value);
         }
         else
         {
-            scheduler.Enqueue(job.Id);
+            hangfireJobId = scheduler.Enqueue(job.Id);
         }
+
+        job.HangfireJobId = hangfireJobId;
+        await repository.UpdateAsync(job, cancellationToken);
 
         return Map(job);
     }
@@ -65,42 +69,41 @@ public class JobService(
         };
     }
 
-    public async Task<bool> CancelAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<JobOperationResult> CancelAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var job = await repository.GetByIdAsync(id, cancellationToken);
         if (job is null)
         {
-            return false;
+            return JobOperationResult.NotFound;
         }
 
         if (job.Status is JobStatus.Completed or JobStatus.Canceled)
         {
-            return false;
+            return JobOperationResult.InvalidState;
         }
 
         if (job.Status == JobStatus.Scheduled)
         {
-            // Delete scheduled job (not recurring job)
-            scheduler.Delete(job.Id);
+            scheduler.Delete(job.HangfireJobId);
         }
 
         job.Status = JobStatus.Canceled;
         job.FinishedAt = DateTime.UtcNow;
         await repository.UpdateAsync(job, cancellationToken);
-        return true;
+        return JobOperationResult.Success;
     }
 
-    public async Task<bool> RetryAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<JobOperationResult> RetryAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var job = await repository.GetByIdAsync(id, cancellationToken);
         if (job is null)
         {
-            return false;
+            return JobOperationResult.NotFound;
         }
 
         if (job.Status != JobStatus.Failed)
         {
-            return false;
+            return JobOperationResult.InvalidState;
         }
 
         job.Status = JobStatus.Retrying;
@@ -109,7 +112,28 @@ public class JobService(
         await repository.UpdateAsync(job, cancellationToken);
 
         scheduler.Enqueue(job.Id);
-        return true;
+        return JobOperationResult.Success;
+    }
+
+    public async Task<PagedResult<ExecutionResponse>?> GetExecutionsAsync(Guid jobId, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var job = await repository.GetByIdAsync(jobId, cancellationToken);
+        if (job is null)
+        {
+            return null;
+        }
+
+        var normalizedPage = page <= 0 ? 1 : page;
+        var normalizedPageSize = pageSize <= 0 ? 20 : Math.Min(pageSize, 100);
+
+        var (items, totalCount) = await repository.ListExecutionsByJobIdAsync(jobId, normalizedPage, normalizedPageSize, cancellationToken);
+        return new PagedResult<ExecutionResponse>
+        {
+            Items = items.Select(MapExecution).ToList(),
+            Page = normalizedPage,
+            PageSize = normalizedPageSize,
+            TotalCount = totalCount
+        };
     }
 
     public async Task<RecurringJobResponse> CreateRecurringAsync(CreateRecurringJobRequest request, CancellationToken cancellationToken = default)
@@ -180,6 +204,19 @@ public class JobService(
         await repository.DeleteRecurringAsync(recurringJob, cancellationToken);
         return true;
     }
+
+    private static ExecutionResponse MapExecution(JobExecution e) => new()
+    {
+        Id = e.Id,
+        JobId = e.JobId,
+        Attempt = e.Attempt,
+        Status = e.Status,
+        StartedAt = e.StartedAt,
+        FinishedAt = e.FinishedAt,
+        DurationInMs = e.DurationInMs,
+        Log = e.Log,
+        ErrorMessage = e.ErrorMessage
+    };
 
     private static JobResponse Map(Job job) => new()
     {

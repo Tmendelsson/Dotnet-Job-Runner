@@ -13,6 +13,7 @@ public class Job
     public DateTime? FinishedAt { get; set; }
     public int RetryCount { get; set; }
     public int MaxRetries { get; set; } = 3;
+    public string? HangfireJobId { get; set; }
     public string? ErrorMessage { get; set; }
     public string CreatedBy { get; set; } = "system";
 

@@ -1,4 +1,5 @@
 using DotnetJobRunner.Application.Abstractions;
+using DotnetJobRunner.Application.Common;
 using DotnetJobRunner.Application.DTOs;
 using DotnetJobRunner.Domain;
 using Microsoft.AspNetCore.Mvc;
@@ -47,14 +48,35 @@ public class JobsController(IJobService jobService) : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Cancel([FromRoute] Guid id, CancellationToken cancellationToken)
     {
-        var ok = await jobService.CancelAsync(id, cancellationToken);
-        return ok ? NoContent() : NotFound();
+        var result = await jobService.CancelAsync(id, cancellationToken);
+        return result switch
+        {
+            JobOperationResult.Success => NoContent(),
+            JobOperationResult.InvalidState => Conflict(),
+            _ => NotFound()
+        };
     }
 
     [HttpPost("{id:guid}/retry")]
     public async Task<IActionResult> Retry([FromRoute] Guid id, CancellationToken cancellationToken)
     {
-        var ok = await jobService.RetryAsync(id, cancellationToken);
-        return ok ? Accepted() : NotFound();
+        var result = await jobService.RetryAsync(id, cancellationToken);
+        return result switch
+        {
+            JobOperationResult.Success => Accepted(),
+            JobOperationResult.InvalidState => Conflict(),
+            _ => NotFound()
+        };
+    }
+
+    [HttpGet("{id:guid}/executions")]
+    public async Task<IActionResult> GetExecutions(
+        [FromRoute] Guid id,
+        [FromQuery] int page,
+        [FromQuery] int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var result = await jobService.GetExecutionsAsync(id, page, pageSize, cancellationToken);
+        return result is null ? NotFound() : Ok(result);
     }
 }

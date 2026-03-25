@@ -6,19 +6,20 @@ namespace DotnetJobRunner.Infrastructure.Scheduling;
 
 public class HangfireJobScheduler(IBackgroundJobClient backgroundJobs, IRecurringJobManager recurringJobs) : IJobScheduler
 {
-    public void Enqueue(Guid jobId)
+    public string Enqueue(Guid jobId)
     {
-        backgroundJobs.Enqueue<JobExecutionService>(service => service.Execute(jobId, CancellationToken.None));
+        return backgroundJobs.Enqueue<JobExecutionService>(service => service.Execute(jobId, CancellationToken.None));
     }
 
-    public void Schedule(Guid jobId, DateTime runAt)
+    public string Schedule(Guid jobId, DateTime runAt)
     {
-        backgroundJobs.Schedule<JobExecutionService>(service => service.Execute(jobId, CancellationToken.None), runAt);
+        return backgroundJobs.Schedule<JobExecutionService>(service => service.Execute(jobId, CancellationToken.None), runAt);
     }
 
-    public void Delete(Guid jobId)
+    public void Delete(string? hangfireJobId)
     {
-        backgroundJobs.Delete(jobId.ToString());
+        if (string.IsNullOrEmpty(hangfireJobId)) return;
+        backgroundJobs.Delete(hangfireJobId);
     }
 
     public void AddOrUpdateRecurring(Guid recurringJobDefinitionId, string cronExpression)

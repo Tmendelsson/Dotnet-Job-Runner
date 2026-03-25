@@ -59,11 +59,17 @@ public class JobRepository(JobDbContext dbContext) : IJobRepository
         return execution;
     }
 
-    public async Task<IReadOnlyList<JobExecution>> ListExecutionsByJobIdAsync(Guid jobId, CancellationToken cancellationToken = default)
-        => await dbContext.JobExecutions
-            .Where(x => x.JobId == jobId)
+    public async Task<(IReadOnlyList<JobExecution> Items, int TotalCount)> ListExecutionsByJobIdAsync(Guid jobId, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.JobExecutions.Where(x => x.JobId == jobId);
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
             .OrderByDescending(x => x.StartedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(cancellationToken);
+        return (items, totalCount);
+    }
 
     public async Task<RecurringJobDefinition> AddRecurringAsync(RecurringJobDefinition recurringJob, CancellationToken cancellationToken = default)
     {

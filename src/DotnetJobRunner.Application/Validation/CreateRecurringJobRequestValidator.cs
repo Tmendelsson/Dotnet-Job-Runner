@@ -5,7 +5,7 @@ namespace DotnetJobRunner.Application.Validation;
 
 public class CreateRecurringJobRequestValidator : AbstractValidator<CreateRecurringJobRequest>
 {
-    private static readonly string[] AllowedPriorities = ["low", "normal", "high", "critical"];
+    private static readonly string[] AllowedPriorities = ["low", "normal", "high"];
 
     public CreateRecurringJobRequestValidator()
     {
@@ -23,6 +23,6 @@ public class CreateRecurringJobRequestValidator : AbstractValidator<CreateRecurr
         RuleFor(x => x.Priority)
             .NotEmpty()
             .Must(p => AllowedPriorities.Contains(p.ToLowerInvariant()))
-            .WithMessage("Priority must be one of: low, normal, high, critical.");
+            .WithMessage("Priority must be one of: low, normal, high.");
     }
 }

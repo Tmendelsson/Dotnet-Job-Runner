@@ -133,11 +133,82 @@ public class JobServiceTests
 
         var result = await _service.RetryAsync(job.Id, CancellationToken.None);
 
-        result.Should().BeTrue();
+        result.Should().Be(JobOperationResult.Success);
         job.Status.Should().Be(JobStatus.Retrying);
         job.RetryCount.Should().Be(2);
         job.ErrorMessage.Should().BeNull();
         _repository.Verify(x => x.UpdateAsync(job, It.IsAny<CancellationToken>()), Times.Once);
         _scheduler.Verify(x => x.Enqueue(job.Id), Times.Once);
+    }
+
+    [Fact]
+    public async Task Should_Return_Paged_Executions_When_Job_Exists()
+    {
+        var jobId = Guid.NewGuid();
+        var job = new Job { Id = jobId, Type = "send-email", Status = JobStatus.Completed };
+        var executions = new List<JobExecution>
+        {
+            new() { Id = Guid.NewGuid(), JobId = jobId, Attempt = 1, Status = ExecutionStatus.Completed, StartedAt = DateTime.UtcNow.AddMinutes(-5), DurationInMs = 300 },
+            new() { Id = Guid.NewGuid(), JobId = jobId, Attempt = 2, Status = ExecutionStatus.Failed, StartedAt = DateTime.UtcNow.AddMinutes(-1), ErrorMessage = "timeout" }
+        };
+
+        _repository
+            .Setup(x => x.GetByIdAsync(jobId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(job);
+        _repository
+            .Setup(x => x.ListExecutionsByJobIdAsync(jobId, 1, 20, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(((IReadOnlyList<JobExecution>)executions, 2));
+
+        var result = await _service.GetExecutionsAsync(jobId, 1, 20, CancellationToken.None);
+
+        result.Should().NotBeNull();
+        result!.Items.Should().HaveCount(2);
+        result.TotalCount.Should().Be(2);
+        result.Page.Should().Be(1);
+        result.PageSize.Should().Be(20);
+        result.Items[0].Status.Should().Be(ExecutionStatus.Completed);
+        result.Items[1].ErrorMessage.Should().Be("timeout");
+    }
+
+    [Fact]
+    public async Task Should_Return_Null_When_Job_Does_Not_Exist_For_Executions()
+    {
+        var jobId = Guid.NewGuid();
+        _repository
+            .Setup(x => x.GetByIdAsync(jobId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Job?)null);
+
+        var result = await _service.GetExecutionsAsync(jobId, 1, 20, CancellationToken.None);
+
+        result.Should().BeNull();
+        _repository.Verify(x => x.ListExecutionsByJobIdAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Should_Return_Conflict_When_Retrying_Non_Failed_Job()
+    {
+        var job = new Job { Id = Guid.NewGuid(), Type = "send-email", Status = JobStatus.Completed };
+        _repository
+            .Setup(x => x.GetByIdAsync(job.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(job);
+
+        var result = await _service.RetryAsync(job.Id, CancellationToken.None);
+
+        result.Should().Be(JobOperationResult.InvalidState);
+        _repository.Verify(x => x.UpdateAsync(It.IsAny<Job>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Should_Return_Conflict_When_Canceling_Already_Completed_Job()
+    {
+        var job = new Job { Id = Guid.NewGuid(), Type = "send-email", Status = JobStatus.Completed };
+        _repository
+            .Setup(x => x.GetByIdAsync(job.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(job);
+
+        var result = await _service.CancelAsync(job.Id, CancellationToken.None);
+
+        result.Should().Be(JobOperationResult.InvalidState);
+        _repository.Verify(x => x.UpdateAsync(It.IsAny<Job>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

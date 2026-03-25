@@ -22,6 +22,42 @@ Plataforma backend para agendar, executar, monitorar e reprocessar tarefas assí
 - tests/DotnetJobRunner.UnitTests
 - tests/DotnetJobRunner.IntegrationTests
 
+## ✅ Status do MVP 1
+
+> **MVP 1 está concluído.** O CI/CD na branch `main` está verde, build passa com 0 erros/warnings e todos os testes passam.
+
+| Funcionalidade | Status |
+|---|---|
+| Criar e enfileirar job imediato (`POST /jobs`) | ✅ |
+| Agendar job para data futura (`RunAt`) | ✅ |
+| Cancelar job (`DELETE /jobs/{id}`) | ✅ |
+| Retentar job com falha (`POST /jobs/{id}/retry`) | ✅ |
+| Consultar status de um job (`GET /jobs/{id}`) | ✅ |
+| Listar jobs com filtros e paginação (`GET /jobs`) | ✅ |
+| Criar job recorrente com cron (`POST /recurring-jobs`) | ✅ |
+| Listar jobs recorrentes (`GET /recurring-jobs`) | ✅ |
+| Habilitar/desabilitar recorrente (`PATCH /recurring-jobs/{id}/enable\|disable`) | ✅ |
+| Deletar job recorrente (`DELETE /recurring-jobs/{id}`) | ✅ |
+| Worker em background executando jobs via Hangfire | ✅ |
+| Histórico de execuções por tentativa (`JobExecution`) | ✅ |
+| Persistência com PostgreSQL + EF Core (migrations) | ✅ |
+| Logging estruturado (Serilog na API e no Worker) | ✅ |
+| Health check (`/health`) | ✅ |
+| Documentação da API (Swagger em `/swagger`) | ✅ |
+| Dashboard Hangfire protegido (`/hangfire`) | ✅ |
+| Testes unitários (5 testes) | ✅ |
+| Teste de integração (1 teste) | ✅ |
+| CI/CD com GitHub Actions | ✅ |
+| Docker Compose para desenvolvimento local | ✅ |
+
+### Próximos passos (MVP 2)
+
+- [ ] Endpoints de histórico de execuções (`GET /jobs/{id}/executions`)
+- [ ] Cobertura de testes para `JobExecutionService`
+- [ ] Backoff exponencial no mecanismo de retry
+- [ ] Padrão plugin `IJobHandler<TPayload>` para handlers extensíveis
+- [ ] Métricas de observabilidade (Prometheus/Grafana)
+
 ## Rodando localmente
 
 1. Suba o banco:

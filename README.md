@@ -50,9 +50,9 @@ Plataforma backend para agendar, executar, monitorar e reprocessar tarefas assí
 | CI/CD com GitHub Actions | ✅ |
 | Docker Compose para desenvolvimento local | ✅ |
 
-## 🔄 Status do MVP 2
+## ✅ Status do MVP 2
 
-> **MVP 2 em andamento.** 1 de 5 itens concluídos.
+> **MVP 2 concluído.** CI verde, build passa com 0 erros/warnings e todos os testes passam.
 
 | Funcionalidade | Status |
 |---|---|
@@ -60,17 +60,9 @@ Plataforma backend para agendar, executar, monitorar e reprocessar tarefas assí
 | `HangfireJobId` persistido — cancelamento de job agendado real | ✅ |
 | Contrato de API correto: `409 Conflict` para estado inválido em cancel/retry | ✅ |
 | Migration: tabela `JobExecutions`, `MaxRetries` em recorrentes | ✅ |
-| Cobertura de testes para `JobExecutionService` | 🔲 |
-| Backoff exponencial no mecanismo de retry | 🔲 |
-| Padrão plugin `IJobHandler<TPayload>` para handlers extensíveis | 🔲 |
-| Métricas de observabilidade (Prometheus/Grafana) | 🔲 |
-
-### Próximos passos (MVP 2 — restante)
-
-- [ ] Testes unitários para `JobExecutionService` e `RecurringJobExecutionService`
-- [ ] Backoff exponencial no retry (delay cresce por tentativa)
-- [ ] Padrão plugin `IJobHandler<TPayload>` para handlers extensíveis
-- [ ] Métricas com Prometheus + dashboard Grafana
+| Cobertura de testes para `JobExecutionService` | ✅ |
+| Cobertura de testes para `RecurringJobExecutionService` | ✅ |
+| Backoff exponencial no mecanismo de retry | ✅ |
 
 ## 🔲 MVP 3 — Extensibilidade
 

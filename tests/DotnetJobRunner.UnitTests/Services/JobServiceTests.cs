@@ -115,7 +115,7 @@ public class JobServiceTests
     }
 
     [Fact]
-    public async Task Should_Retry_Failed_Job_When_Requested()
+    public async Task Should_Retry_Failed_Job_With_Exponential_Backoff()
     {
         var job = new Job
         {
@@ -130,6 +130,9 @@ public class JobServiceTests
         _repository
             .Setup(x => x.GetByIdAsync(job.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(job);
+        _scheduler
+            .Setup(x => x.Schedule(job.Id, It.IsAny<DateTime>()))
+            .Returns("hangfire-retry-job-id");
 
         var result = await _service.RetryAsync(job.Id, CancellationToken.None);
 
@@ -137,8 +140,11 @@ public class JobServiceTests
         job.Status.Should().Be(JobStatus.Retrying);
         job.RetryCount.Should().Be(2);
         job.ErrorMessage.Should().BeNull();
+        job.HangfireJobId.Should().Be("hangfire-retry-job-id");
+        job.ScheduledAt.Should().NotBeNull();
         _repository.Verify(x => x.UpdateAsync(job, It.IsAny<CancellationToken>()), Times.Once);
-        _scheduler.Verify(x => x.Enqueue(job.Id), Times.Once);
+        _scheduler.Verify(x => x.Schedule(job.Id, It.IsAny<DateTime>()), Times.Once);
+        _scheduler.Verify(x => x.Enqueue(It.IsAny<Guid>()), Times.Never);
     }
 
     [Fact]

@@ -109,9 +109,13 @@ public class JobService(
         job.Status = JobStatus.Retrying;
         job.ErrorMessage = null;
         job.RetryCount += 1;
-        await repository.UpdateAsync(job, cancellationToken);
 
-        scheduler.Enqueue(job.Id);
+        var delaySeconds = 30 * Math.Pow(2, job.RetryCount - 1);
+        var runAt = DateTime.UtcNow.AddSeconds(delaySeconds);
+        job.HangfireJobId = scheduler.Schedule(job.Id, runAt);
+        job.ScheduledAt = runAt;
+
+        await repository.UpdateAsync(job, cancellationToken);
         return JobOperationResult.Success;
     }
 

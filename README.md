@@ -45,8 +45,8 @@ Plataforma backend para agendar, executar, monitorar e reprocessar tarefas assí
 | Health check (`/health`) | ✅ |
 | Documentação da API (Swagger em `/swagger`) | ✅ |
 | Dashboard Hangfire protegido (`/hangfire`) | ✅ |
-| Testes unitários (9 testes) | ✅ |
-| Teste de integração (1 teste) | ✅ |
+| Testes unitários (35 testes) | ✅ |
+| Testes de integração (4 testes) | ✅ |
 | CI/CD com GitHub Actions | ✅ |
 | Docker Compose para desenvolvimento local | ✅ |
 
@@ -64,17 +64,21 @@ Plataforma backend para agendar, executar, monitorar e reprocessar tarefas assí
 | Cobertura de testes para `RecurringJobExecutionService` | ✅ |
 | Backoff exponencial no mecanismo de retry | ✅ |
 
-## 🔲 MVP 3 — Extensibilidade
+## ✅ Status do MVP 3
 
-> **"O sistema é extensível"** — handlers reais, autenticação e rate limiting.
+> **MVP 3 concluído.** O sistema é extensível, protegido por API Key/RBAC e possui controle de concorrência/rate limit por tipo de job.
 
 | Funcionalidade | Status |
 |---|---|
-| Padrão plugin `IJobHandler<TPayload>` — handlers como classes independentes | 🔲 |
-| Handlers reais: envio de e-mail, geração de relatório, sync de dados, import CSV | 🔲 |
-| Rate limiting / concorrência configurável por tipo de job | 🔲 |
-| Autenticação real na API (JWT ou API Key) para ambientes não-localhost | 🔲 |
-| Testes unitários para cada handler | 🔲 |
+| Padrão plugin `IJobHandler<TPayload>` — handlers como classes independentes | ✅ |
+| Handlers reais: envio de e-mail, geração de relatório, sync de dados, import CSV | ✅ |
+| Validação de `job.Type` contra handlers registrados | ✅ |
+| Retry policy explícita: Hangfire sem retry automático invisível | ✅ |
+| Rate limiting / concorrência configurável por tipo de job | ✅ |
+| Autenticação real na API com API Key | ✅ |
+| RBAC simples (`Admin`, `Operator`, `Viewer`) | ✅ |
+| Dashboard Hangfire protegido por API Key de `Admin` | ✅ |
+| Testes unitários para cada handler | ✅ |
 
 ## 🔲 MVP 4 — Produção
 
@@ -111,6 +115,55 @@ Plataforma backend para agendar, executar, monitorar e reprocessar tarefas assí
 - Health: /health
 
 Use a porta que aparecer no console ao executar `dotnet run`.
+
+## Autenticação
+
+Os endpoints de jobs e recurring jobs exigem API Key no header:
+
+```http
+X-API-Key: sua-chave
+```
+
+Configure as chaves por variáveis de ambiente ou secrets:
+
+```powershell
+$env:Authentication__ApiKey__Keys__0__Name = "local-admin"
+$env:Authentication__ApiKey__Keys__0__Value = "sua-chave"
+$env:Authentication__ApiKey__Keys__0__Roles__0 = "Admin"
+```
+
+Papéis suportados:
+
+- `Admin`: acesso completo, incluindo Hangfire Dashboard.
+- `Operator`: cria, cancela, retenta e consulta jobs.
+- `Viewer`: consulta jobs e execuções.
+
+Para acessar o Hangfire Dashboard no navegador, use uma chave com papel `Admin`:
+
+```text
+/hangfire?api_key=sua-chave
+```
+
+## Controle por tipo de job
+
+A concorrência e o rate limit são configuráveis por tipo:
+
+```json
+{
+  "Jobs": {
+    "Types": {
+      "send-email": {
+        "MaxConcurrency": 5,
+        "RateLimitPerMinute": 60
+      },
+      "generate-report": {
+        "MaxConcurrency": 1,
+        "RateLimitPerMinute": 10
+      }
+    }
+  }
+}
+```
 
 ## Migrações EF Core
 

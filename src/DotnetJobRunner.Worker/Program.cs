@@ -1,5 +1,6 @@
 ﻿using DotnetJobRunner.Application;
 using DotnetJobRunner.Infrastructure;
+using DotnetJobRunner.Application.Jobs.Options;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Microsoft.Extensions.Configuration;
@@ -20,14 +21,17 @@ builder.UseSerilog((context, loggerConfig) =>
 builder.ConfigureServices((context, services) =>
 {
     services.AddApplication();
+    services.Configure<JobExecutionOptions>(context.Configuration.GetSection("Jobs"));
     services.AddInfrastructure(context.Configuration);
 
     var connectionString = context.Configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException("DefaultConnection is not configured.");
 
     services.AddHangfire(configuration =>
-        configuration.UsePostgreSqlStorage(options =>
-            options.UseNpgsqlConnection(connectionString)));
+        configuration
+            .UsePostgreSqlStorage(options =>
+                options.UseNpgsqlConnection(connectionString))
+            .UseFilter(new AutomaticRetryAttribute { Attempts = 0 }));
     services.AddHangfireServer();
 
     // Add health checks for monitoring

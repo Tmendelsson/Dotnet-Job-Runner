@@ -1,3 +1,4 @@
+using DotnetJobRunner.Application.Abstractions;
 using DotnetJobRunner.Application.DTOs;
 using FluentValidation;
 
@@ -7,15 +8,18 @@ public class CreateRecurringJobRequestValidator : AbstractValidator<CreateRecurr
 {
     private static readonly string[] AllowedPriorities = ["low", "normal", "high"];
 
-    public CreateRecurringJobRequestValidator()
+    public CreateRecurringJobRequestValidator(IJobHandlerResolver handlerResolver)
     {
         RuleFor(x => x.Name)
             .NotEmpty()
             .MaximumLength(100);
 
         RuleFor(x => x.Type)
+            .Cascade(CascadeMode.Stop)
             .NotEmpty()
-            .MaximumLength(100);
+            .MaximumLength(100)
+            .Must(handlerResolver.Exists)
+            .WithMessage(_ => $"Job type is not supported. Supported types: {string.Join(", ", handlerResolver.SupportedJobTypes)}.");
 
         RuleFor(x => x.CronExpression)
             .NotEmpty();

@@ -13,14 +13,19 @@ public class JobServiceTests
 {
     private readonly Mock<IJobRepository> _repository = new();
     private readonly Mock<IJobScheduler> _scheduler = new();
+    private readonly Mock<IJobHandlerResolver> _handlerResolver = new();
     private readonly JobService _service;
 
     public JobServiceTests()
     {
+        _handlerResolver
+            .Setup(x => x.Exists(It.IsAny<string>()))
+            .Returns(true);
+
         _service = new JobService(
             _repository.Object,
-            new CreateJobRequestValidator(),
-            new CreateRecurringJobRequestValidator(),
+            new CreateJobRequestValidator(_handlerResolver.Object),
+            new CreateRecurringJobRequestValidator(_handlerResolver.Object),
             _scheduler.Object);
     }
 
@@ -138,13 +143,70 @@ public class JobServiceTests
 
         result.Should().Be(JobOperationResult.Success);
         job.Status.Should().Be(JobStatus.Retrying);
-        job.RetryCount.Should().Be(2);
+        job.RetryCount.Should().Be(1);
         job.ErrorMessage.Should().BeNull();
         job.HangfireJobId.Should().Be("hangfire-retry-job-id");
         job.ScheduledAt.Should().NotBeNull();
         _repository.Verify(x => x.UpdateAsync(job, It.IsAny<CancellationToken>()), Times.Once);
         _scheduler.Verify(x => x.Schedule(job.Id, It.IsAny<DateTime>()), Times.Once);
         _scheduler.Verify(x => x.Enqueue(It.IsAny<Guid>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Should_Return_Conflict_When_Max_Retries_Was_Reached()
+    {
+        var job = new Job
+        {
+            Id = Guid.NewGuid(),
+            Type = "import-csv",
+            Priority = JobPriority.Normal,
+            Status = JobStatus.Failed,
+            RetryCount = 3,
+            MaxRetries = 3,
+            ErrorMessage = "permanent failure"
+        };
+
+        _repository
+            .Setup(x => x.GetByIdAsync(job.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(job);
+
+        var result = await _service.RetryAsync(job.Id, CancellationToken.None);
+
+        result.Should().Be(JobOperationResult.InvalidState);
+        _repository.Verify(x => x.UpdateAsync(It.IsAny<Job>(), It.IsAny<CancellationToken>()), Times.Never);
+        _scheduler.Verify(x => x.Schedule(It.IsAny<Guid>(), It.IsAny<DateTime>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Should_Use_First_Backoff_When_Failed_Job_Has_No_Retry_Count()
+    {
+        var job = new Job
+        {
+            Id = Guid.NewGuid(),
+            Type = "import-csv",
+            Priority = JobPriority.Normal,
+            Status = JobStatus.Failed,
+            RetryCount = 0,
+            MaxRetries = 3,
+            ErrorMessage = "temporary failure"
+        };
+
+        _repository
+            .Setup(x => x.GetByIdAsync(job.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(job);
+        _scheduler
+            .Setup(x => x.Schedule(job.Id, It.IsAny<DateTime>()))
+            .Returns("hangfire-retry-job-id");
+
+        var result = await _service.RetryAsync(job.Id, CancellationToken.None);
+
+        result.Should().Be(JobOperationResult.Success);
+        job.Status.Should().Be(JobStatus.Retrying);
+        job.RetryCount.Should().Be(0);
+        job.ScheduledAt.Should().NotBeNull();
+        var scheduledAt = job.ScheduledAt.GetValueOrDefault();
+        scheduledAt.Should().BeAfter(DateTime.UtcNow.AddSeconds(20));
+        scheduledAt.Should().BeBefore(DateTime.UtcNow.AddSeconds(40));
     }
 
     [Fact]

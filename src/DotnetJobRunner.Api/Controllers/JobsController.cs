@@ -2,15 +2,18 @@ using DotnetJobRunner.Application.Abstractions;
 using DotnetJobRunner.Application.Common;
 using DotnetJobRunner.Application.DTOs;
 using DotnetJobRunner.Domain;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DotnetJobRunner.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("jobs")]
 public class JobsController(IJobService jobService) : ControllerBase
 {
     [HttpPost]
+    [Authorize(Roles = "Admin,Operator")]
     public async Task<IActionResult> Create([FromBody] CreateJobRequest request, CancellationToken cancellationToken)
     {
         var result = await jobService.CreateAsync(request, cancellationToken);
@@ -18,6 +21,7 @@ public class JobsController(IJobService jobService) : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [Authorize(Roles = "Admin,Operator,Viewer")]
     public async Task<IActionResult> GetById([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var job = await jobService.GetByIdAsync(id, cancellationToken);
@@ -25,6 +29,7 @@ public class JobsController(IJobService jobService) : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "Admin,Operator,Viewer")]
     public async Task<IActionResult> List(
         [FromQuery] JobStatus? status,
         [FromQuery] string? type,
@@ -46,6 +51,7 @@ public class JobsController(IJobService jobService) : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Admin,Operator")]
     public async Task<IActionResult> Cancel([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var result = await jobService.CancelAsync(id, cancellationToken);
@@ -58,6 +64,7 @@ public class JobsController(IJobService jobService) : ControllerBase
     }
 
     [HttpPost("{id:guid}/retry")]
+    [Authorize(Roles = "Admin,Operator")]
     public async Task<IActionResult> Retry([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var result = await jobService.RetryAsync(id, cancellationToken);
@@ -70,6 +77,7 @@ public class JobsController(IJobService jobService) : ControllerBase
     }
 
     [HttpGet("{id:guid}/executions")]
+    [Authorize(Roles = "Admin,Operator,Viewer")]
     public async Task<IActionResult> GetExecutions(
         [FromRoute] Guid id,
         [FromQuery] int page,

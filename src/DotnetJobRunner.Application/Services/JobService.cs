@@ -19,7 +19,7 @@ public class JobService(
 
         var job = new Job
         {
-            Type = request.Type,
+            Type = request.Type.Trim().ToLowerInvariant(),
             Payload = JsonSerializer.Serialize(request.Payload ?? new { }),
             Priority = JobPriorityExtensions.Parse(request.Priority),
             MaxRetries = request.MaxRetries,
@@ -82,7 +82,7 @@ public class JobService(
             return JobOperationResult.InvalidState;
         }
 
-        if (job.Status == JobStatus.Scheduled)
+        if (job.Status is JobStatus.Scheduled or JobStatus.Retrying)
         {
             scheduler.Delete(job.HangfireJobId);
         }
@@ -106,11 +106,16 @@ public class JobService(
             return JobOperationResult.InvalidState;
         }
 
+        if (job.RetryCount >= job.MaxRetries)
+        {
+            return JobOperationResult.InvalidState;
+        }
+
         job.Status = JobStatus.Retrying;
         job.ErrorMessage = null;
-        job.RetryCount += 1;
 
-        var delaySeconds = 30 * Math.Pow(2, job.RetryCount - 1);
+        var retryNumber = Math.Max(job.RetryCount, 1);
+        var delaySeconds = 30 * Math.Pow(2, retryNumber - 1);
         var runAt = DateTime.UtcNow.AddSeconds(delaySeconds);
         job.HangfireJobId = scheduler.Schedule(job.Id, runAt);
         job.ScheduledAt = runAt;
@@ -147,7 +152,7 @@ public class JobService(
         var recurringJob = new RecurringJobDefinition
         {
             Name = request.Name,
-            Type = request.Type,
+            Type = request.Type.Trim().ToLowerInvariant(),
             CronExpression = request.CronExpression,
             Payload = JsonSerializer.Serialize(request.Payload ?? new { }),
             Priority = JobPriorityExtensions.Parse(request.Priority),

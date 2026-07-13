@@ -10,12 +10,22 @@ namespace DotnetJobRunner.UnitTests.Services;
 public class JobExecutionServiceTests
 {
     private readonly Mock<IJobRepository> _repository = new();
+    private readonly Mock<IJobHandlerResolver> _handlerResolver = new();
+    private readonly Mock<IJobExecutionLimiter> _executionLimiter = new();
     private readonly Mock<ILogger<JobExecutionService>> _logger = new();
     private readonly JobExecutionService _service;
 
     public JobExecutionServiceTests()
     {
-        _service = new JobExecutionService(_repository.Object, _logger.Object);
+        _executionLimiter
+            .Setup(x => x.AcquireAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new NoOpLease());
+
+        _service = new JobExecutionService(
+            _repository.Object,
+            _handlerResolver.Object,
+            _executionLimiter.Object,
+            _logger.Object);
     }
 
     [Fact]
@@ -34,6 +44,7 @@ public class JobExecutionServiceTests
         _repository
             .Setup(x => x.GetByIdAsync(job.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(job);
+        SetupSuccessfulHandler(job.Type);
 
         await _service.Execute(job.Id, CancellationToken.None);
 
@@ -83,9 +94,6 @@ public class JobExecutionServiceTests
     [Fact]
     public async Task Should_Set_Status_To_Failed_When_Max_Retries_Exceeded()
     {
-        using var cts = new CancellationTokenSource();
-        await cts.CancelAsync();
-
         var job = new Job
         {
             Id = Guid.NewGuid(),
@@ -99,8 +107,9 @@ public class JobExecutionServiceTests
         _repository
             .Setup(x => x.GetByIdAsync(job.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(job);
+        SetupFailingHandler(job.Type);
 
-        await Assert.ThrowsAnyAsync<Exception>(() => _service.Execute(job.Id, cts.Token));
+        await Assert.ThrowsAnyAsync<Exception>(() => _service.Execute(job.Id, CancellationToken.None));
 
         job.Status.Should().Be(JobStatus.Failed);
         _repository.Verify(x => x.AddExecutionAsync(
@@ -109,11 +118,8 @@ public class JobExecutionServiceTests
     }
 
     [Fact]
-    public async Task Should_Set_Status_To_Retrying_When_Attempt_Below_Max_Retries()
+    public async Task Should_Set_Status_To_Failed_When_Attempt_Below_Max_Retries()
     {
-        using var cts = new CancellationTokenSource();
-        await cts.CancelAsync();
-
         var job = new Job
         {
             Id = Guid.NewGuid(),
@@ -127,12 +133,50 @@ public class JobExecutionServiceTests
         _repository
             .Setup(x => x.GetByIdAsync(job.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(job);
+        SetupFailingHandler(job.Type);
 
-        await Assert.ThrowsAnyAsync<Exception>(() => _service.Execute(job.Id, cts.Token));
+        await Assert.ThrowsAnyAsync<Exception>(() => _service.Execute(job.Id, CancellationToken.None));
 
-        job.Status.Should().Be(JobStatus.Retrying);
+        job.Status.Should().Be(JobStatus.Failed);
         _repository.Verify(x => x.AddExecutionAsync(
             It.Is<JobExecution>(e => e.Status == ExecutionStatus.Failed),
             It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private void SetupSuccessfulHandler(string jobType)
+    {
+        var handler = new Mock<IJobHandler>();
+        handler.SetupGet(x => x.PayloadType).Returns(typeof(Dictionary<string, object?>));
+        handler
+            .Setup(x => x.ExecuteAsync(
+                It.IsAny<object>(),
+                It.Is<JobExecutionContext>(context => context.JobType == jobType),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(JobExecutionResult.Success("Test handler completed."));
+
+        _handlerResolver
+            .Setup(x => x.Resolve(jobType))
+            .Returns(handler.Object);
+    }
+
+    private void SetupFailingHandler(string jobType)
+    {
+        var handler = new Mock<IJobHandler>();
+        handler.SetupGet(x => x.PayloadType).Returns(typeof(Dictionary<string, object?>));
+        handler
+            .Setup(x => x.ExecuteAsync(
+                It.IsAny<object>(),
+                It.Is<JobExecutionContext>(context => context.JobType == jobType),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("handler failed"));
+
+        _handlerResolver
+            .Setup(x => x.Resolve(jobType))
+            .Returns(handler.Object);
+    }
+
+    private sealed class NoOpLease : IAsyncDisposable
+    {
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

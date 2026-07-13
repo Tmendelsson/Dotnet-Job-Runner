@@ -1,6 +1,8 @@
 using DotnetJobRunner.Api.Authorization;
+using DotnetJobRunner.Api.Authentication;
 using DotnetJobRunner.Application;
 using DotnetJobRunner.Application.Abstractions;
+using DotnetJobRunner.Application.Jobs.Options;
 using DotnetJobRunner.Infrastructure;
 using DotnetJobRunner.Infrastructure.Persistence;
 using FluentValidation;
@@ -9,6 +11,7 @@ using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,10 +25,40 @@ builder.Host.UseSerilog((context, loggerConfig) =>
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddProblemDetails();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition(ApiKeyDefaults.AuthenticationScheme, new OpenApiSecurityScheme
+    {
+        Description = "API key required to access protected endpoints.",
+        Name = ApiKeyDefaults.HeaderName,
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = ApiKeyDefaults.AuthenticationScheme
+    });
+
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecuritySchemeReference(ApiKeyDefaults.AuthenticationScheme, document),
+            []
+        }
+    });
+});
 
 builder.Services.AddApplication();
+builder.Services.Configure<JobExecutionOptions>(builder.Configuration.GetSection("Jobs"));
 builder.Services.AddInfrastructure(builder.Configuration);
+
+builder.Services
+    .AddOptions<ApiKeyAuthenticationOptions>()
+    .Bind(builder.Configuration.GetSection("Authentication:ApiKey"));
+builder.Services.AddSingleton<IApiKeyValidator, ApiKeyValidator>();
+builder.Services
+    .AddAuthentication(ApiKeyDefaults.AuthenticationScheme)
+    .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
+        ApiKeyDefaults.AuthenticationScheme,
+        options => builder.Configuration.GetSection("Authentication:ApiKey").Bind(options));
+builder.Services.AddAuthorization();
 
 if (!builder.Environment.IsEnvironment("Testing"))
 {
@@ -33,8 +66,10 @@ if (!builder.Environment.IsEnvironment("Testing"))
         ?? throw new InvalidOperationException("DefaultConnection is not configured.");
 
     builder.Services.AddHangfire(configuration =>
-        configuration.UsePostgreSqlStorage(options =>
-            options.UseNpgsqlConnection(connectionString)));
+        configuration
+            .UsePostgreSqlStorage(options =>
+                options.UseNpgsqlConnection(connectionString))
+            .UseFilter(new AutomaticRetryAttribute { Attempts = 0 }));
 }
 else
 {
@@ -95,7 +130,7 @@ app.UseSerilogRequestLogging();
 
 app.UseRouting();
 
-// UseAuthorization must be called before endpoint mapping
+app.UseAuthentication();
 app.UseAuthorization();
 
 if (!app.Environment.IsEnvironment("Testing"))
